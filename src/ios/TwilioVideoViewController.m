@@ -28,7 +28,7 @@ NSString *const CLOSED = @"CLOSED";
     [[TwilioVideoManager getInstance] publishEvent: OPENED];
     [self.navigationController setNavigationBarHidden:YES animated:NO];
     
-    [self logMessage:[NSString stringWithFormat:@"TwilioVideo v%@", [TwilioVideo version]]];
+//    [self logMessage:[NSString stringWithFormat:@"TwilioVideo v%@", [TwilioVideo version]]];
     
     // Configure access token for testing. Create one manually in the console
     // at https://www.twilio.com/console/video/runtime/testing-tools
@@ -114,41 +114,96 @@ NSString *const CLOSED = @"CLOSED";
 }
 
 - (void)startPreview {
-    // TVICameraCapturer is not supported with the Simulator.
+    // TVICameraSource is not supported with the Simulator.
     if ([self isSimulator]) {
         [self.previewView removeFromSuperview];
         return;
     }
-    
-    self.camera = [[TVICameraCapturer alloc] initWithSource:TVICameraCaptureSourceFrontCamera delegate:self];
-    self.localVideoTrack = [TVILocalVideoTrack trackWithCapturer:self.camera
-                                                         enabled:YES
-                                                     constraints:nil
-                                                            name:@"Camera"];
-    if (!self.localVideoTrack) {
-        [self logMessage:@"Failed to add video track"];
-    } else {
+
+    AVCaptureDevice *frontCamera = [TVICameraSource captureDeviceForPosition:AVCaptureDevicePositionFront];
+    AVCaptureDevice *backCamera = [TVICameraSource captureDeviceForPosition:AVCaptureDevicePositionBack];
+
+    if (frontCamera != nil || backCamera != nil) {
+        self.camera = [[TVICameraSource alloc] initWithDelegate:self];
+        self.localVideoTrack = [TVILocalVideoTrack trackWithSource:self.camera
+                                                           enabled:YES
+                                                              name:@"Camera"];
         // Add renderer to video track for local preview
         [self.localVideoTrack addRenderer:self.previewView];
-        
         [self logMessage:@"Video track created"];
-        
-        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                              action:@selector(flipCamera)];
-        
-        self.videoButton.hidden = NO;
-        self.cameraSwitchButton.hidden = NO;
-        [self.previewView addGestureRecognizer:tap];
-    }
-}
 
-- (void)flipCamera {
-    if (self.camera.source == TVICameraCaptureSourceFrontCamera) {
-        [self.camera selectSource:TVICameraCaptureSourceBackCameraWide];
+        if (frontCamera != nil && backCamera != nil) {
+            UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                  action:@selector(flipCamera)];
+            [self.previewView addGestureRecognizer:tap];
+        }
+        [self.camera startCaptureWithDevice:frontCamera != nil ? frontCamera : backCamera
+                                 completion:^(AVCaptureDevice *device, TVIVideoFormat *format, NSError *error) {
+                                     if (error != nil) {
+                                         [self logMessage:[NSString stringWithFormat:@"Start capture failed with error.\ncode = %lu error = %@", error.code, error.localizedDescription]];
+                                     } else {
+                                         self.previewView.mirror = (device.position == AVCaptureDevicePositionFront);
+                                     }
+                                 }];
     } else {
-        [self.camera selectSource:TVICameraCaptureSourceFrontCamera];
+        [self logMessage:@"No front or back capture device found!"];
     }
 }
+//
+//- (void)startPreview {
+//    // TVICameraCapturer is not supported with the Simulator.
+//    if ([self isSimulator]) {
+//        [self.previewView removeFromSuperview];
+//        return;
+//    }
+//
+//    self.camera = [[TVICameraCapturer alloc] initWithSource:TVICameraCaptureSourceFrontCamera delegate:self];
+//    self.localVideoTrack = [TVILocalVideoTrack trackWithCapturer:self.camera
+//                                                         enabled:YES
+//                                                     constraints:nil
+//                                                            name:@"Camera"];
+//    if (!self.localVideoTrack) {
+//        [self logMessage:@"Failed to add video track"];
+//    } else {
+//        // Add renderer to video track for local preview
+//        [self.localVideoTrack addRenderer:self.previewView];
+//
+//        [self logMessage:@"Video track created"];
+//
+//        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self
+//                                                                              action:@selector(flipCamera)];
+//
+//        self.videoButton.hidden = NO;
+//        self.cameraSwitchButton.hidden = NO;
+//        [self.previewView addGestureRecognizer:tap];
+//    }
+//}
+- (void)flipCamera {
+    AVCaptureDevice *newDevice = nil;
+
+    if (self.camera.device.position == AVCaptureDevicePositionFront) {
+        newDevice = [TVICameraSource captureDeviceForPosition:AVCaptureDevicePositionBack];
+    } else {
+        newDevice = [TVICameraSource captureDeviceForPosition:AVCaptureDevicePositionFront];
+    }
+
+    if (newDevice != nil) {
+        [self.camera selectCaptureDevice:newDevice completion:^(AVCaptureDevice *device, TVIVideoFormat *format, NSError *error) {
+            if (error != nil) {
+                [self logMessage:[NSString stringWithFormat:@"Error selecting capture device.\ncode = %lu error = %@", error.code, error.localizedDescription]];
+            } else {
+                self.previewView.mirror = (device.position == AVCaptureDevicePositionFront);
+            }
+        }];
+    }
+}
+//- (void)flipCamera {
+//    if (self.camera.source == TVICameraCaptureSourceFrontCamera) {
+//        [self.camera selectSource:TVICameraCaptureSourceBackCameraWide];
+//    } else {
+//        [self.camera selectSource:TVICameraCaptureSourceFrontCamera];
+//    }
+//}
 
 - (void)prepareLocalMedia {
     
@@ -182,17 +237,44 @@ NSString *const CLOSED = @"CLOSED";
     
     TVIConnectOptions *connectOptions = [TVIConnectOptions optionsWithToken:self.accessToken
                                                                       block:^(TVIConnectOptionsBuilder * _Nonnull builder) {
-                                                                          builder.roomName = self.roomName;
-                                                                          // Use the local media that we prepared earlier.
-                                                                          builder.audioTracks = self.localAudioTrack ? @[ self.localAudioTrack ] : @[ ];
-                                                                          builder.videoTracks = self.localVideoTrack ? @[ self.localVideoTrack ] : @[ ];
-                                                                      }];
+
+        // Use the local media that we prepared earlier.
+        builder.audioTracks = self.localAudioTrack ? @[ self.localAudioTrack ] : @[ ];
+        builder.videoTracks = self.localVideoTrack ? @[ self.localVideoTrack ] : @[ ];
+
+        // The name of the Room where the Client will attempt to connect to. Please note that if you pass an empty
+        // Room `name`, the Client will create one for you. You can get the name or sid from any connected Room.
+        builder.roomName = self.roomName;
+    }];
     
     // Connect to the Room using the options we provided.
-    self.room = [TwilioVideo connectWithOptions:connectOptions delegate:self];
-    
+    self.room = [TwilioVideoSDK connectWithOptions:connectOptions delegate:self];
     [self logMessage:@"Attempting to connect to room"];
 }
+//
+//- (void)doConnect {
+//    if ([self.accessToken isEqualToString:@"TWILIO_ACCESS_TOKEN"]) {
+//        [self logMessage:@"Please provide a valid token to connect to a room"];
+//        return;
+//    }
+//
+//    // Prepare local media which we will share with Room Participants.
+//    [self prepareLocalMedia];
+//
+//    TVIConnectOptions *connectOptions = [TVIConnectOptions optionsWithToken:self.accessToken
+//                                                                      block:^(TVIConnectOptionsBuilder * _Nonnull builder) {
+//                                                                          builder.roomName = self.roomName;
+//                                                                          // Use the local media that we prepared earlier.
+//                                                                          builder.audioTracks = self.localAudioTrack ? @[ self.localAudioTrack ] : @[ ];
+//                                                                          builder.videoTracks = self.localVideoTrack ? @[ self.localVideoTrack ] : @[ ];
+//                                                                      }];
+//
+//    // Connect to the Room using the options we provided.
+//    self.room = [TwilioVideo connectWithOptions:connectOptions delegate:self];
+//
+//    [self logMessage:@"Attempting to connect to room"];
+//}
+
 
 - (void)setupRemoteView {
     // Creating `TVIVideoView` programmatically
@@ -204,6 +286,7 @@ NSString *const CLOSED = @"CLOSED";
 
     [self.view insertSubview:remoteView atIndex:0];
     self.remoteView = remoteView;
+
     
     NSLayoutConstraint *centerX = [NSLayoutConstraint constraintWithItem:self.remoteView
                                                                attribute:NSLayoutAttributeCenterX
@@ -360,7 +443,7 @@ NSString *const CLOSED = @"CLOSED";
 #pragma mark - TVIRemoteParticipantDelegate
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-      publishedVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
+      didPublishVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
     
     // Remote Participant has offered to share the video Track.
     
@@ -369,7 +452,7 @@ NSString *const CLOSED = @"CLOSED";
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-    unpublishedVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
+    didUnpublishVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
     
     // Remote Participant has stopped sharing the video Track.
     
@@ -378,7 +461,7 @@ NSString *const CLOSED = @"CLOSED";
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-      publishedAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
+      didPublishAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
     
     // Remote Participant has offered to share the audio Track.
     
@@ -387,7 +470,7 @@ NSString *const CLOSED = @"CLOSED";
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-    unpublishedAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
+    didUnpublishAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
     
     // Remote Participant has stopped sharing the audio Track.
     
@@ -395,7 +478,8 @@ NSString *const CLOSED = @"CLOSED";
                       participant.identity, publication.trackName]];
 }
 
-- (void)subscribedToVideoTrack:(TVIRemoteVideoTrack *)videoTrack
+
+- (void)didSubscribeToVideoTrack:(TVIRemoteVideoTrack *)videoTrack
                    publication:(TVIRemoteVideoTrackPublication *)publication
                 forParticipant:(TVIRemoteParticipant *)participant {
     
@@ -412,7 +496,7 @@ NSString *const CLOSED = @"CLOSED";
     }
 }
 
-- (void)unsubscribedFromVideoTrack:(TVIRemoteVideoTrack *)videoTrack
+- (void)didUnsubscribeFromVideoTrack:(TVIRemoteVideoTrack *)videoTrack
                        publication:(TVIRemoteVideoTrackPublication *)publication
                     forParticipant:(TVIRemoteParticipant *)participant {
     
@@ -429,7 +513,7 @@ NSString *const CLOSED = @"CLOSED";
     }
 }
 
-- (void)subscribedToAudioTrack:(TVIRemoteAudioTrack *)audioTrack
+- (void)didSubscribeToAudioTrack:(TVIRemoteAudioTrack *)audioTrack
                    publication:(TVIRemoteAudioTrackPublication *)publication
                 forParticipant:(TVIRemoteParticipant *)participant {
     
@@ -441,7 +525,7 @@ NSString *const CLOSED = @"CLOSED";
     [[TwilioVideoManager getInstance] publishEvent: AUDIO_TRACK_ADDED];
 }
 
-- (void)unsubscribedFromAudioTrack:(TVIRemoteAudioTrack *)audioTrack
+- (void)didUnsubscribeFromAudioTrack:(TVIRemoteAudioTrack *)audioTrack
                        publication:(TVIRemoteAudioTrackPublication *)publication
                     forParticipant:(TVIRemoteParticipant *)participant {
     
@@ -454,37 +538,37 @@ NSString *const CLOSED = @"CLOSED";
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-        enabledVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
+        didEnableVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
     [self logMessage:[NSString stringWithFormat:@"Participant %@ enabled %@ video track.",
                       participant.identity, publication.trackName]];
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-       disabledVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
+       didDisableVideoTrack:(TVIRemoteVideoTrackPublication *)publication {
     [self logMessage:[NSString stringWithFormat:@"Participant %@ disabled %@ video track.",
                       participant.identity, publication.trackName]];
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-        enabledAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
+        didEnableAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
     [self logMessage:[NSString stringWithFormat:@"Participant %@ enabled %@ audio track.",
                       participant.identity, publication.trackName]];
 }
 
 - (void)remoteParticipant:(TVIRemoteParticipant *)participant
-       disabledAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
+       didDisableAudioTrack:(TVIRemoteAudioTrackPublication *)publication {
     [self logMessage:[NSString stringWithFormat:@"Participant %@ disabled %@ audio track.",
                       participant.identity, publication.trackName]];
 }
 
-- (void)failedToSubscribeToAudioTrack:(TVIRemoteAudioTrackPublication *)publication
+- (void)didFailToSubscribeToAudioTrack:(TVIRemoteAudioTrackPublication *)publication
                                 error:(NSError *)error
                        forParticipant:(TVIRemoteParticipant *)participant {
     [self logMessage:[NSString stringWithFormat:@"Participant %@ failed to subscribe to %@ audio track.",
                       participant.identity, publication.trackName]];
 }
 
-- (void)failedToSubscribeToVideoTrack:(TVIRemoteVideoTrackPublication *)publication
+- (void)didFailToSubscribeToVideoTrack:(TVIRemoteVideoTrackPublication *)publication
                                 error:(NSError *)error
                        forParticipant:(TVIRemoteParticipant *)participant {
     [self logMessage:[NSString stringWithFormat:@"Participant %@ failed to subscribe to %@ video track.",
@@ -498,10 +582,16 @@ NSString *const CLOSED = @"CLOSED";
     [self.view setNeedsLayout];
 }
 
-#pragma mark - TVICameraCapturerDelegate
+#pragma mark - TVICameraSourceDelegate
 
-- (void)cameraCapturer:(TVICameraCapturer *)capturer didStartWithSource:(TVICameraCaptureSource)source {
-    self.previewView.mirror = (source == TVICameraCaptureSourceFrontCamera);
+- (void)cameraSource:(TVICameraSource *)source didFailWithError:(NSError *)error {
+    [self logMessage:[NSString stringWithFormat:@"Capture failed with error.\ncode = %lu error = %@", error.code, error.localizedDescription]];
 }
+
+//#pragma mark - TVICameraCapturerDelegate
+//
+//- (void)cameraCapturer:(TVICameraCapturer *)capturer didStartWithSource:(TVICameraCaptureSource)source {
+//    self.previewView.mirror = (source == TVICameraCaptureSourceFrontCamera);
+//}
 
 @end
