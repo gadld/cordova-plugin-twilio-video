@@ -5,5 +5,8 @@
 
 @interface TwilioVideoPlugin : CDVPlugin<TwilioVideoEventProducerDelegate>
 @property (nonatomic, strong) NSString *listenerCallbackID;
+
+@property (nonatomic, strong) TwilioVideoViewController *twilioVc;
+
 @end
 

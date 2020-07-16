@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="14113" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="jSN-F6-Q4K">
-    <device id="retina4_7" orientation="portrait">
-        <adaptation id="fullscreen"/>
-    </device>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="15705" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="jSN-F6-Q4K">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="14088"/>
-        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="15706"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -31,10 +28,10 @@
                                 </constraints>
                             </view>
                             <stackView opaque="NO" contentMode="scaleToFill" spacing="20" translatesAutoresizingMaskIntoConstraints="NO" id="qlu-eV-2lM">
-                                <rect key="frame" x="162.5" y="36" width="50" height="50"/>
+                                <rect key="frame" x="127.5" y="16" width="120" height="50"/>
                                 <subviews>
                                     <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="XKU-af-eTc" userLabel="Camera switch Button">
-                                        <rect key="frame" x="-162.5" y="0.0" width="50" height="50"/>
+                                        <rect key="frame" x="-50" y="0.0" width="50" height="50"/>
                                         <color key="backgroundColor" red="0.24313725490196078" green="0.27450980392156865" blue="0.40000000000000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                         <constraints>
                                             <constraint firstAttribute="height" constant="50" id="6Mt-cd-gfH"/>
@@ -52,7 +49,7 @@
                                         </connections>
                                     </button>
                                     <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="7bK-Tc-zw5" userLabel="Video button">
-                                        <rect key="frame" x="-162.5" y="0.0" width="50" height="50"/>
+                                        <rect key="frame" x="-50" y="0.0" width="50" height="50"/>
                                         <color key="backgroundColor" red="0.24313725489999999" green="0.27450980390000002" blue="0.40000000000000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                         <constraints>
                                             <constraint firstAttribute="height" constant="50" id="DeR-M4-O6S"/>
@@ -70,12 +67,32 @@
                                             <action selector="videoButtonPressed:" destination="jSN-F6-Q4K" eventType="touchUpInside" id="NfY-Fz-ylQ"/>
                                         </connections>
                                     </button>
-                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="rwp-9E-VzS" userLabel="Mic Button">
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="fill" contentVerticalAlignment="fill" adjustsImageSizeForAccessibilityContentSizeCategory="YES" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="rwp-9E-VzS" userLabel="Mic Button">
                                         <rect key="frame" x="0.0" y="0.0" width="50" height="50"/>
                                         <color key="backgroundColor" red="0.24313725490196078" green="0.27450980392156865" blue="0.40000000000000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                         <constraints>
                                             <constraint firstAttribute="width" constant="50" id="QMt-3K-tlE"/>
                                             <constraint firstAttribute="height" constant="50" id="Zj7-mh-UC4"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                        <state key="normal" backgroundImage="ver_dieta.png">
+                                            <color key="titleColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                            <preferredSymbolConfiguration key="preferredSymbolConfiguration" scale="default"/>
+                                        </state>
+                                        <userDefinedRuntimeAttributes>
+                                            <userDefinedRuntimeAttribute type="string" keyPath="layer.cornerRadius" value="25"/>
+                                            <userDefinedRuntimeAttribute type="boolean" keyPath="clipsToBounds" value="YES"/>
+                                        </userDefinedRuntimeAttributes>
+                                        <connections>
+                                            <action selector="minimizeButtonPressed:" destination="jSN-F6-Q4K" eventType="touchUpInside" id="ePg-vD-rBZ"/>
+                                        </connections>
+                                    </button>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Q5g-m7-iNN" userLabel="Mic Button">
+                                        <rect key="frame" x="70" y="0.0" width="50" height="50"/>
+                                        <color key="backgroundColor" red="0.24313725489999999" green="0.27450980390000002" blue="0.40000000000000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="50" id="9zS-5k-xmV"/>
+                                            <constraint firstAttribute="width" constant="50" id="Joj-4d-r3z"/>
                                         </constraints>
                                         <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                         <state key="normal" image="mic.png">
@@ -86,7 +103,7 @@
                                             <userDefinedRuntimeAttribute type="boolean" keyPath="clipsToBounds" value="YES"/>
                                         </userDefinedRuntimeAttributes>
                                         <connections>
-                                            <action selector="micButtonPressed:" destination="jSN-F6-Q4K" eventType="touchUpInside" id="6Tr-Cb-Rmf"/>
+                                            <action selector="micButtonPressed:" destination="jSN-F6-Q4K" eventType="touchUpInside" id="g5W-vD-mQP"/>
                                         </connections>
                                     </button>
                                 </subviews>
@@ -123,7 +140,8 @@
                     <connections>
                         <outlet property="cameraSwitchButton" destination="XKU-af-eTc" id="jTc-4v-uIt"/>
                         <outlet property="disconnectButton" destination="krA-sT-Z3g" id="uQu-1U-Ree"/>
-                        <outlet property="micButton" destination="rwp-9E-VzS" id="SW4-po-OHw"/>
+                        <outlet property="micButton" destination="Q5g-m7-iNN" id="DdP-XM-UsO"/>
+                        <outlet property="minimizeButton" destination="rwp-9E-VzS" id="NfB-JU-3SE"/>
                         <outlet property="previewView" destination="hJ3-NM-pz1" id="1kY-rd-tEJ"/>
                         <outlet property="videoButton" destination="7bK-Tc-zw5" id="WoD-99-cw1"/>
                     </connections>
@@ -134,9 +152,10 @@
         </scene>
     </scenes>
     <resources>
-        <image name="end_call.png" width="24" height="24"/>
-        <image name="mic.png" width="12" height="24"/>
-        <image name="switch_camera.png" width="24" height="18"/>
-        <image name="video.png" width="24" height="13"/>
+        <image name="end_call.png" width="11.520000457763672" height="11.520000457763672"/>
+        <image name="mic.png" width="6" height="11.520000457763672"/>
+        <image name="switch_camera.png" width="11.520000457763672" height="8.6400003433227539"/>
+        <image name="ver_dieta.png" width="112.5" height="91.25"/>
+        <image name="video.png" width="11.520000457763672" height="6.4800000190734863"/>
     </resources>
 </document>

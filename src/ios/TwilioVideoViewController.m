@@ -13,6 +13,8 @@ NSString *const AUDIO_TRACK_REMOVED = @"AUDIO_TRACK_REMOVED";
 NSString *const VIDEO_TRACK_ADDED = @"VIDEO_TRACK_ADDED";
 NSString *const VIDEO_TRACK_REMOVED = @"VIDEO_TRACK_REMOVED";
 NSString *const PERMISSIONS_REQUIRED = @"PERMISSIONS_REQUIRED";
+NSString *const MINIMIZED = @"MINIMIZED";
+NSString *const ENLARGED = @"ENLARGED";
 NSString *const HANG_UP = @"HANG_UP";
 NSString *const CLOSED = @"CLOSED";
 
@@ -43,7 +45,13 @@ NSString *const CLOSED = @"CLOSED";
     [self.micButton setImage:[UIImage imageNamed:@"no_mic"] forState: UIControlStateSelected];
     [self.videoButton setImage:[UIImage imageNamed:@"video"] forState: UIControlStateNormal];
     [self.videoButton setImage:[UIImage imageNamed:@"no_video"] forState: UIControlStateSelected];
-    
+//    [self.minimizeButton setImage:[UIImage imageNamed:@"ver_dieta"] forState: UIControlStateNormal];
+    [self.minimizeButton.imageView setContentMode:UIViewContentModeScaleAspectFit];
+    self.minimizeButton.titleLabel.lineBreakMode = NSLineBreakByWordWrapping;
+    // you probably want to center it
+    self.minimizeButton.titleLabel.textAlignment = NSTextAlignmentCenter; // if you want to
+//    self.minimizeButton.imageEdgeInsets = UIEdgeInsetsMake(50, 50, 50, 50);
+
     // Customize button colors
     NSString *primaryColor = [self.config primaryColorHex];
     if (primaryColor != NULL) {
@@ -91,6 +99,29 @@ NSString *const CLOSED = @"CLOSED";
         // If audio not enabled, mic is muted and button crossed out
         [self.micButton setSelected: !self.localAudioTrack.isEnabled];
     }
+}
+- (IBAction)minimizeButtonPressed:(id)sender {
+    self.micButton.hidden = YES;
+    self.minimizeButton.hidden = YES;
+    self.disconnectButton.hidden = YES;
+    
+    self.originalSize = self.view.frame;
+    self.previewView.hidden = true;
+    self.isMinimized = true;
+    float X_Co = self.view.frame.size.width - 190;
+    float Y_Co = self.view.frame.size.height - 130;
+    [self.view setFrame:CGRectMake(X_Co, Y_Co, 160, 100)];
+    [[TwilioVideoManager getInstance] publishEvent: MINIMIZED];
+}
+- (IBAction)unMinimizeButtonPressed:(id)sender {
+    self.micButton.hidden = NO;
+    self.minimizeButton.hidden = NO;
+    self.disconnectButton.hidden = NO;
+    
+    self.previewView.hidden = false;
+    self.isMinimized = false;
+    [self.view setFrame:self.originalSize];
+    [[TwilioVideoManager getInstance] publishEvent: ENLARGED];
 }
 
 - (IBAction)cameraSwitchButtonPressed:(id)sender {
@@ -286,7 +317,9 @@ NSString *const CLOSED = @"CLOSED";
 
     [self.view insertSubview:remoteView atIndex:0];
     self.remoteView = remoteView;
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(unMinimizeButtonPressed:)];
 
+    [self.remoteView addGestureRecognizer:tap];
     
     NSLayoutConstraint *centerX = [NSLayoutConstraint constraintWithItem:self.remoteView
                                                                attribute:NSLayoutAttributeCenterX

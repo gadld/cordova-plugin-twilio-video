@@ -7,6 +7,8 @@
 @interface TwilioVideoViewController: UIViewController <TVIRemoteParticipantDelegate, TVIRoomDelegate, TVIVideoViewDelegate, TVICameraSourceDelegate, TwilioVideoActionProducerDelegate>
 
 // Configure access token manually for testing in `ViewDidLoad`, if desired! Create one manually in the console.
+@property Boolean isMinimized;
+@property CGRect originalSize;
 @property (nonatomic, strong) NSString *roomName;
 @property (nonatomic, strong) NSString *accessToken;
 @property (nonatomic, strong) TwilioVideoConfig *config;
@@ -32,6 +34,7 @@
 @property (nonatomic, weak) IBOutlet UILabel *roomLine;
 @property (nonatomic, weak) IBOutlet UIButton *cameraSwitchButton;
 @property (nonatomic, weak) IBOutlet UIButton *videoButton;
+@property (nonatomic, weak) IBOutlet UIButton *minimizeButton;
 
 - (void)connectToRoom:(NSString*)room token: (NSString *)token;
 

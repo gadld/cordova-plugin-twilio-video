@@ -21,20 +21,29 @@
     
     dispatch_async(dispatch_get_main_queue(), ^{
         UIStoryboard *sb = [UIStoryboard storyboardWithName:@"TwilioVideo" bundle:nil];
-        TwilioVideoViewController *vc = [sb instantiateViewControllerWithIdentifier:@"TwilioVideoViewController"];
-        
-        vc.config = config;
+        self.twilioVc = [sb instantiateViewControllerWithIdentifier:@"TwilioVideoViewController"];
 
-        vc.view.backgroundColor = [UIColor clearColor];
-        vc.modalPresentationStyle = UIModalPresentationOverFullScreen;
+        self.twilioVc.config = config;
+
+        self.twilioVc.view.backgroundColor = [UIColor clearColor];
+        self.twilioVc.modalPresentationStyle = UIModalPresentationPopover;
         
-        [self.viewController presentViewController:vc animated:NO completion:^{
-            [vc connectToRoom:room token:token];
-        }];
+        [self.viewController addChildViewController:self.twilioVc];
+        [self.twilioVc connectToRoom:room token:token];
+        
+        self.twilioVc.view.frame = self.viewController.view.frame;//[self frameForContentController];
+        [self.viewController.view addSubview:self.twilioVc.view];
+        [self.twilioVc didMoveToParentViewController:self.viewController];
+        
+//        [self.viewController presentViewController:vc animated:NO completion:^{
+//            [vc connectToRoom:room token:token];
+//        }];
     });
 }
 
 - (void)closeRoom:(CDVInvokedUrlCommand*)command {
+    [self.twilioVc.view removeFromSuperview];
+    
     if ([[TwilioVideoManager getInstance] publishDisconnection]) {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
     } else {
