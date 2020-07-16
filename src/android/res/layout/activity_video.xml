@@ -5,8 +5,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
+    android:fitsSystemWindows="false"
     tools:context="org.apache.cordova.twiliovideo.VideoActivity">
+
 
     <include layout="@layout/content_video" />
 
@@ -57,7 +58,7 @@
         android:id="@+id/local_video_action_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:srcCompat="@drawable/ic_videocam_green_24px" 
+        app:srcCompat="@drawable/ic_videocam_green_24px"
         app:backgroundTint="#f4f4f4"
         app:tint="@android:color/black"
         app:borderWidth="0dp"
@@ -69,10 +70,10 @@
         app:useCompatPadding="true"/>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/mute_action_fab"
+        android:id="@+id/minimize_video_action_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:srcCompat="@drawable/ic_microphone"
+        app:srcCompat="@drawable/ic_ver_dieta"
         app:backgroundTint="#f4f4f4"
         app:tint="@android:color/black"
         app:borderWidth="0dp"

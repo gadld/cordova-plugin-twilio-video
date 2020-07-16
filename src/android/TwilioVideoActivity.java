@@ -1,6 +1,7 @@
 package org.apache.cordova.twiliovideo;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -13,13 +14,22 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
+
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 
 import com.twilio.video.CameraCapturer;
 import com.twilio.video.CameraCapturer.CameraSource;
@@ -47,7 +57,9 @@ import org.json.JSONObject;
 import java.util.Collections;
 import java.util.List;
 
-public class TwilioVideoActivity extends AppCompatActivity implements CallActionObserver {
+import mx.com.nutrify.connect.R;
+
+public class TwilioVideoActivity extends Fragment implements CallActionObserver {
 
     /*
      * Audio and video tracks can be created with names. This feature is useful for categorizing
@@ -61,7 +73,6 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
 
     private static final int PERMISSIONS_REQUEST_CODE = 1;
 
-    private static FakeR FAKE_R;
 
     /*
      * Access token used to connect. This field will be set either from the console generated token
@@ -93,8 +104,9 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
     private FloatingActionButton connectActionFab;
     private FloatingActionButton switchCameraActionFab;
     private FloatingActionButton localVideoActionFab;
-    private FloatingActionButton muteActionFab;
+//    private FloatingActionButton muteActionFab;
     private FloatingActionButton switchAudioActionFab;
+    private FloatingActionButton minimizeVideoActionFab;
     private AudioManager audioManager;
     private String participantIdentity;
 
@@ -104,104 +116,131 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
     private VideoRenderer localVideoView;
 
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
 
-        TwilioVideoManager.getInstance().setActionListenerObserver(this);
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    /*
+     * Needed for setting/abandoning audio focus during call
+     */
+    audioManager = (AudioManager) getActivity().getSystemService(Context.AUDIO_SERVICE);
+    audioManager.setSpeakerphoneOn(true);
 
-        FAKE_R = new FakeR(this);
 
-        publishEvent(CallEvent.OPENED);
-        setContentView(FAKE_R.getLayout("activity_video"));
+    this.accessToken = getArguments().getString("token");
+    this.roomId = getArguments().getString("roomId");
+    try {
+      String s = getArguments().getString("config");
+      JSONObject o = new JSONObject(s);
+      this.config = new CallConfig();
+      this.config.parse(o);
 
-        primaryVideoView = findViewById(FAKE_R.getId("primary_video_view"));
-        thumbnailVideoView = findViewById(FAKE_R.getId("thumbnail_video_view"));
-
-        connectActionFab = findViewById(FAKE_R.getId("connect_action_fab"));
-        switchCameraActionFab = findViewById(FAKE_R.getId("switch_camera_action_fab"));
-        localVideoActionFab = findViewById(FAKE_R.getId("local_video_action_fab"));
-        muteActionFab = findViewById(FAKE_R.getId("mute_action_fab"));
-        switchAudioActionFab = findViewById(FAKE_R.getId("switch_audio_action_fab"));
-
-        /*
-         * Enable changing the volume using the up/down keys during a conversation
-         */
-        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
-
-        /*
-         * Needed for setting/abandoning audio focus during call
-         */
-        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.setSpeakerphoneOn(true);
-
-        Intent intent = getIntent();
-
-        this.accessToken = intent.getStringExtra("token");
-        this.roomId = intent.getStringExtra("roomId");
-        this.config = (CallConfig) intent.getSerializableExtra("config");
-
-        Log.d(TwilioVideo.TAG, "BEFORE REQUEST PERMISSIONS");
-        if (!hasPermissionForCameraAndMicrophone()) {
-            Log.d(TwilioVideo.TAG, "REQUEST PERMISSIONS");
-            requestPermissions();
-        } else {
-            Log.d(TwilioVideo.TAG, "PERMISSIONS OK. CREATE LOCAL MEDIA");
-            createAudioAndVideoTracks();
-            connectToRoom();
-        }
-
-        /*
-         * Set the initial state of the UI
-         */
-        initializeUI();
+    } catch (JSONException e) {
+      e.printStackTrace();
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            boolean permissionsGranted = true;
 
-            for (int grantResult : grantResults) {
-                permissionsGranted &= grantResult == PackageManager.PERMISSION_GRANTED;
-            }
+    Log.i("Right", "onCreate()");
+  }
 
-            if (permissionsGranted) {
-                createAudioAndVideoTracks();
-                connectToRoom();
-            } else {
-                publishEvent(CallEvent.PERMISSIONS_REQUIRED);
-                TwilioVideoActivity.this.handleConnectionError(config.getI18nConnectionError());
-            }
-        }
+
+
+  @Nullable
+  @Override
+  public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+
+    return inflater.inflate(R.layout.activity_video, container, false);
+  }
+
+  @Override
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+      super.onViewCreated(view, savedInstanceState);
+
+    TwilioVideoManager.getInstance().setActionListenerObserver(this);
+
+
+    publishEvent(CallEvent.OPENED);
+
+    primaryVideoView = view.findViewById(R.id.primary_video_view);
+    thumbnailVideoView = view.findViewById(R.id.thumbnail_video_view);
+
+    connectActionFab = view.findViewById(R.id.connect_action_fab);
+    switchCameraActionFab = view.findViewById(R.id.switch_camera_action_fab);
+    localVideoActionFab = view.findViewById(R.id.local_video_action_fab);
+//    muteActionFab = view.findViewById(R.id.mute_action_fab);
+    switchAudioActionFab = view.findViewById(R.id.switch_audio_action_fab);
+
+    minimizeVideoActionFab = view.findViewById(R.id.minimize_video_action_fab);
+    /*
+     * Enable changing the volume using the up/down keys during a conversation
+     */
+    getActivity().setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
+
+    initializeUI();
+
+    Log.d(TwilioVideo.TAG, "BEFORE REQUEST PERMISSIONS");
+    if (!hasPermissionForCameraAndMicrophone()) {
+      Log.d(TwilioVideo.TAG, "REQUEST PERMISSIONS");
+      requestLocalPermissions();
+    } else {
+      Log.d(TwilioVideo.TAG, "PERMISSIONS OK. CREATE LOCAL MEDIA");
+      createAudioAndVideoTracks();
+      connectToRoom();
     }
 
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == PERMISSIONS_REQUEST_CODE) {
+      boolean permissionsGranted = true;
+
+      for (int grantResult : grantResults) {
+        permissionsGranted &= grantResult == PackageManager.PERMISSION_GRANTED;
+      }
+
+      if (permissionsGranted) {
+        createAudioAndVideoTracks();
+        connectToRoom();
+      } else {
+        publishEvent(CallEvent.PERMISSIONS_REQUIRED);
+        TwilioVideoActivity.this.handleConnectionError(config.getI18nConnectionError());
+      }
+    }
+  }
+
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         /*
          * If the local video track was released when the app was put in the background, recreate.
          */
         if (localVideoTrack == null && hasPermissionForCameraAndMicrophone()) {
-            localVideoTrack = LocalVideoTrack.create(this,
-                    true,
-                    cameraCapturer.getVideoCapturer(),
-                    LOCAL_VIDEO_TRACK_NAME);
+          if(cameraCapturer!=null){
+            localVideoTrack = LocalVideoTrack.create(getActivity(),
+              true,
+              cameraCapturer.getVideoCapturer(),
+              LOCAL_VIDEO_TRACK_NAME);
             localVideoTrack.addRenderer(thumbnailVideoView);
 
             /*
              * If connected to a Room then share the local video track.
              */
             if (localParticipant != null) {
-                localParticipant.publishTrack(localVideoTrack);
+              localParticipant.publishTrack(localVideoTrack);
             }
+          }else{
+            createAudioAndVideoTracks();
+            connectToRoom();
+          }
+
+
         }
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         /*
          * Release the local video track before going in the background. This ensures that the
          * camera can be used by other applications while this app is in the background.
@@ -222,14 +261,15 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
         super.onPause();
     }
 
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        overridePendingTransition(0, 0);
-    }
+//    @Override
+//    public void onBackPressed() {
+//        super.onBackPressed();
+//        overridePendingTransition(0, 0);
+//    }
+
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
 
         /*
          * Always disconnect from the room before leaving the Activity to
@@ -260,28 +300,25 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
         super.onDestroy();
     }
 
+
     private boolean hasPermissionForCameraAndMicrophone() {
-        int resultCamera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
-        int resultMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO);
+        int resultCamera = ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA);
+        int resultMic = ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.RECORD_AUDIO);
         return resultCamera == PackageManager.PERMISSION_GRANTED &&
                 resultMic == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void requestPermissions() {
-        ActivityCompat.requestPermissions(
-                this,
-                TwilioVideo.PERMISSIONS_REQUIRED,
-                PERMISSIONS_REQUEST_CODE);
-
+    private void requestLocalPermissions() {
+      requestPermissions(TwilioVideo.PERMISSIONS_REQUIRED, PERMISSIONS_REQUEST_CODE);
     }
 
     private void createAudioAndVideoTracks() {
         // Share your microphone
-        localAudioTrack = LocalAudioTrack.create(this, true, LOCAL_AUDIO_TRACK_NAME);
+        localAudioTrack = LocalAudioTrack.create(getActivity(), true, LOCAL_AUDIO_TRACK_NAME);
 
         // Share your camera
-        cameraCapturer = new CameraCapturerCompat(this, getAvailableCameraSource());
-        localVideoTrack = LocalVideoTrack.create(this,
+        cameraCapturer = new CameraCapturerCompat(getActivity(), getAvailableCameraSource());
+        localVideoTrack = LocalVideoTrack.create(getActivity(),
                 true,
                 cameraCapturer.getVideoCapturer(),
                 LOCAL_VIDEO_TRACK_NAME);
@@ -314,7 +351,7 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
             connectOptionsBuilder.videoTracks(Collections.singletonList(localVideoTrack));
         }
 
-        room = Video.connect(this, connectOptionsBuilder.build(), roomListener());
+        room = Video.connect(getActivity(), connectOptionsBuilder.build(), roomListener());
     }
 
     /*
@@ -334,7 +371,6 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
             ColorStateList color = ColorStateList.valueOf(secondaryColor);
             switchCameraActionFab.setBackgroundTintList(color);
             localVideoActionFab.setBackgroundTintList(color);
-            muteActionFab.setBackgroundTintList(color);
             switchAudioActionFab.setBackgroundTintList(color);
         }
 
@@ -342,17 +378,22 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
         switchCameraActionFab.setOnClickListener(switchCameraClickListener());
         localVideoActionFab.show();
         localVideoActionFab.setOnClickListener(localVideoClickListener());
-        muteActionFab.show();
-        muteActionFab.setOnClickListener(muteClickListener());
+//        muteActionFab.hide();
+//        muteActionFab.setOnClickListener(muteClickListener());
         switchAudioActionFab.show();
         switchAudioActionFab.setOnClickListener(switchAudioClickListener());
+        minimizeVideoActionFab.show();
+        minimizeVideoActionFab.setOnClickListener(minimizeVideoClickListener());
+        primaryVideoView.setOnClickListener(maximizeVideoClickListener());
+
+
     }
 
     /*
      * The actions performed during disconnect.
      */
     private void setDisconnectAction() {
-        connectActionFab.setImageDrawable(ContextCompat.getDrawable(this, FAKE_R.getDrawable("ic_phone_hangup")));
+//        connectActionFab.setImageDrawable(ContextCompat.getDrawable(getActivity(), FAKE_R.getDrawable("ic_phone_hangup")));
         connectActionFab.show();
         connectActionFab.setOnClickListener(disconnectClickListener());
     }
@@ -764,6 +805,54 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
         };
     }
 
+    private View.OnClickListener minimizeVideoClickListener() {
+      return new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+          publishEvent(CallEvent.MINIMIZED);
+
+          thumbnailVideoView.setVisibility(View.GONE);
+          switchCameraActionFab.hide();
+          localVideoActionFab.hide();
+          connectActionFab.hide();
+          switchAudioActionFab.hide();
+          minimizeVideoActionFab.hide();
+
+
+          ViewGroup.MarginLayoutParams layoutParams =  (ViewGroup.MarginLayoutParams) primaryVideoView.getLayoutParams();
+          layoutParams.width = (int) ((int)getScreenWidth(getActivity())*.4);
+          layoutParams.height = (int) ((int)getScreenWidth(getActivity())*.25);
+          layoutParams.setMargins(0,0,20,0);
+          primaryVideoView.setLayoutParams(layoutParams);
+        }
+      };
+    }
+    private View.OnClickListener maximizeVideoClickListener() {
+      return new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+          thumbnailVideoView.setVisibility(View.VISIBLE);
+          switchCameraActionFab.show();
+          localVideoActionFab.show();
+          connectActionFab.show();
+
+          switchAudioActionFab.show();
+          minimizeVideoActionFab.show();
+
+          ViewGroup.MarginLayoutParams layoutParams =  (ViewGroup.MarginLayoutParams) primaryVideoView.getLayoutParams();
+          layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+          layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+          layoutParams.setMargins(0,0,0,0);
+          primaryVideoView.setLayoutParams(layoutParams);
+
+        }
+      };
+    }
+    public static int getScreenWidth(Context context) {
+      DisplayMetrics displayMetrics = new DisplayMetrics();
+      ((Activity)context).getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+      return displayMetrics.widthPixels;
+    }
     private View.OnClickListener switchAudioClickListener() {
         return new View.OnClickListener() {
             @Override
@@ -774,10 +863,11 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
                     audioManager.setSpeakerphoneOn(true);
 
                 }
-                int icon = audioManager.isSpeakerphoneOn() ?
-                        FAKE_R.getDrawable("ic_phonelink_ring_white_24dp") : FAKE_R.getDrawable("ic_volume_headhphones_white_24dp");
-                switchAudioActionFab.setImageDrawable(ContextCompat.getDrawable(
-                        TwilioVideoActivity.this, icon));
+                Integer ring = getResources().getIdentifier("@drawable/ic_phonelink_ring_white_24dp", "drawable", getActivity().getPackageName());
+                Integer headphones = getResources().getIdentifier("@drawable/ic_volume_headhphones_white_24dp", "drawable", getActivity().getPackageName());
+
+              int icon = audioManager.isSpeakerphoneOn() ? ring : headphones;
+              switchAudioActionFab.setImageDrawable(ContextCompat.getDrawable( getActivity(), icon));
             }
         };
     }
@@ -794,15 +884,14 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
                     localVideoTrack.enable(enable);
                     int icon;
                     if (enable) {
-                        icon = FAKE_R.getDrawable("ic_videocam_green_24px");
+
+                      icon = getResources().getIdentifier("@drawable/ic_videocam_green_24px", "drawable", getActivity().getPackageName());
                         switchCameraActionFab.show();
                     } else {
-                        icon = FAKE_R.getDrawable("ic_videocam_off_red_24px");
+                      icon = getResources().getIdentifier("@drawable/ic_videocam_off_red_24px", "drawable", getActivity().getPackageName());
                         switchCameraActionFab.hide();
                     }
-
-                    localVideoActionFab.setImageDrawable(
-                            ContextCompat.getDrawable(TwilioVideoActivity.this, icon));
+                    localVideoActionFab.setImageDrawable(ContextCompat.getDrawable( getActivity(), icon));
                 }
             }
         };
@@ -820,10 +909,13 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
                 if (localAudioTrack != null) {
                     boolean enable = !localAudioTrack.isEnabled();
                     localAudioTrack.enable(enable);
-                    int icon = enable ?
-                            FAKE_R.getDrawable("ic_microphone") : FAKE_R.getDrawable("ic_microphone_off");
-                    muteActionFab.setImageDrawable(ContextCompat.getDrawable(
-                            TwilioVideoActivity.this, icon));
+                  Integer mic_on = getResources().getIdentifier("@drawable/ic_microphone", "drawable", getActivity().getPackageName());
+                  Integer mic_off = getResources().getIdentifier("@drawable/ic_microphone_off", "drawable", getActivity().getPackageName());
+
+                  int icon = enable ?
+                    mic_on : mic_off;
+//                    muteActionFab.setImageDrawable(ContextCompat.getDrawable(
+//                      getActivity(), icon));
                 }
             }
         };
@@ -884,7 +976,7 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
             return;
         }
         Log.i(TwilioVideo.TAG, "Connection error handled by the plugin");
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setMessage(message)
                 .setCancelable(false)
                 .setPositiveButton(config.getI18nAccept(), new DialogInterface.OnClickListener() {
@@ -909,11 +1001,12 @@ public class TwilioVideoActivity extends AppCompatActivity implements CallAction
         finish();
     }
 
-    @Override
     public void finish() {
-        configureAudio(false);
-        super.finish();
-        overridePendingTransition(0, 0);
+      configureAudio(false);
+
+      getFragmentManager().beginTransaction().remove(TwilioVideoActivity.this).commit();
+      //        super.finish();
+//        overridePendingTransition(0, 0);
     }
 
     private void publishEvent(CallEvent event) {
