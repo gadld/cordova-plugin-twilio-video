@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
@@ -114,7 +115,6 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
     private boolean previousMicrophoneMute;
     private boolean disconnectedFromOnDestroy;
     private VideoRenderer localVideoView;
-
 
 
   @Override
@@ -863,11 +863,15 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
                     audioManager.setSpeakerphoneOn(true);
 
                 }
-                Integer ring = getResources().getIdentifier("@drawable/ic_phonelink_ring_white_24dp", "drawable", getActivity().getPackageName());
-                Integer headphones = getResources().getIdentifier("@drawable/ic_volume_headhphones_white_24dp", "drawable", getActivity().getPackageName());
 
-              int icon = audioManager.isSpeakerphoneOn() ? ring : headphones;
-              switchAudioActionFab.setImageDrawable(ContextCompat.getDrawable( getActivity(), icon));
+                if(audioManager.isSpeakerphoneOn()){
+                  switchAudioActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_phonelink_ring_white_24dp));
+                }else{
+                  switchAudioActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_volume_headhphones_white_24dp));
+                }
+                switchAudioActionFab.hide();
+                switchAudioActionFab.show();
+
             }
         };
     }
@@ -884,14 +888,14 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
                     localVideoTrack.enable(enable);
                     int icon;
                     if (enable) {
-
-                      icon = getResources().getIdentifier("@drawable/ic_videocam_green_24px", "drawable", getActivity().getPackageName());
-                        switchCameraActionFab.show();
+                      localVideoActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_videocam_green_24px));
+                      switchCameraActionFab.show();
                     } else {
-                      icon = getResources().getIdentifier("@drawable/ic_videocam_off_red_24px", "drawable", getActivity().getPackageName());
-                        switchCameraActionFab.hide();
+                      localVideoActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_videocam_off_red_24px));
+                      switchCameraActionFab.hide();
                     }
-                    localVideoActionFab.setImageDrawable(ContextCompat.getDrawable( getActivity(), icon));
+                    localVideoActionFab.hide();
+                    localVideoActionFab.show();
                 }
             }
         };
@@ -911,6 +915,7 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
                     localAudioTrack.enable(enable);
                   Integer mic_on = getResources().getIdentifier("@drawable/ic_microphone", "drawable", getActivity().getPackageName());
                   Integer mic_off = getResources().getIdentifier("@drawable/ic_microphone_off", "drawable", getActivity().getPackageName());
+
 
                   int icon = enable ?
                     mic_on : mic_off;

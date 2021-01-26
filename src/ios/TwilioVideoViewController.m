@@ -114,14 +114,17 @@ NSString *const CLOSED = @"CLOSED";
     [[TwilioVideoManager getInstance] publishEvent: MINIMIZED];
 }
 - (IBAction)unMinimizeButtonPressed:(id)sender {
-    self.micButton.hidden = NO;
-    self.minimizeButton.hidden = NO;
-    self.disconnectButton.hidden = NO;
+    if(self.isMinimized){
+        self.micButton.hidden = NO;
+        self.minimizeButton.hidden = NO;
+        self.disconnectButton.hidden = NO;
+        
+        self.previewView.hidden = false;
+        self.isMinimized = false;
+        [self.view setFrame:self.originalSize];
+        [[TwilioVideoManager getInstance] publishEvent: ENLARGED];
+    }
     
-    self.previewView.hidden = false;
-    self.isMinimized = false;
-    [self.view setFrame:self.originalSize];
-    [[TwilioVideoManager getInstance] publishEvent: ENLARGED];
 }
 
 - (IBAction)cameraSwitchButtonPressed:(id)sender {
@@ -432,11 +435,18 @@ NSString *const CLOSED = @"CLOSED";
     
     [self cleanupRemoteParticipant];
     self.room = nil;
-    
+
     [self showRoomUI:NO];
     if (error != NULL) {
-        [[TwilioVideoManager getInstance] publishEvent:DISCONNECTED_WITH_ERROR with:@{ @"code": [NSString stringWithFormat:@"%ld",[error code]] }];
-        [self handleConnectionError: [self.config i18nDisconnectedWithError]];
+        
+        if([error code]==53405 && !self.room){
+            [self showRoomUI:YES];
+            [self doConnect];
+        }else{
+            [[TwilioVideoManager getInstance] publishEvent:DISCONNECTED_WITH_ERROR with:@{ @"code": [NSString stringWithFormat:@"%ld",[error code]] }];
+            [self handleConnectionError: [self.config i18nDisconnectedWithError]];
+        }
+        
     } else {
         [[TwilioVideoManager getInstance] publishEvent: DISCONNECTED];
         [self dismiss];
@@ -452,7 +462,12 @@ NSString *const CLOSED = @"CLOSED";
     [self showRoomUI:NO];
     [self handleConnectionError: [self.config i18nConnectionError]];
 }
-
+-(void)room:(TVIRoom *)room isReconnectingWithError:(NSError *)error{
+    NSLog(@"is reconnecting %@",error);
+}
+-(void)didReconnectToRoom:(TVIRoom *)room{
+    NSLog(@"reconnected %@",room);
+}
 - (void)room:(TVIRoom *)room participantDidConnect:(TVIRemoteParticipant *)participant {
     if (!self.remoteParticipant) {
         self.remoteParticipant = participant;
