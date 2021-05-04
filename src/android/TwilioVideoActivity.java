@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
@@ -58,7 +57,7 @@ import org.json.JSONObject;
 import java.util.Collections;
 import java.util.List;
 
-import mx.com.nutrify.connect.R;
+import com.applint.nutriapp.R;
 
 public class TwilioVideoActivity extends Fragment implements CallActionObserver {
 
@@ -115,6 +114,7 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
     private boolean previousMicrophoneMute;
     private boolean disconnectedFromOnDestroy;
     private VideoRenderer localVideoView;
+
 
 
   @Override
@@ -381,7 +381,7 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
 //        muteActionFab.hide();
 //        muteActionFab.setOnClickListener(muteClickListener());
         switchAudioActionFab.show();
-        switchAudioActionFab.setOnClickListener(switchAudioClickListener());
+        switchAudioActionFab.setOnClickListener(muteClickListener());
         minimizeVideoActionFab.show();
         minimizeVideoActionFab.setOnClickListener(minimizeVideoClickListener());
         primaryVideoView.setOnClickListener(maximizeVideoClickListener());
@@ -863,15 +863,11 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
                     audioManager.setSpeakerphoneOn(true);
 
                 }
+                Integer ring = getResources().getIdentifier("@drawable/ic_phonelink_ring_white_24dp", "drawable", getActivity().getPackageName());
+                Integer headphones = getResources().getIdentifier("@drawable/ic_volume_headhphones_white_24dp", "drawable", getActivity().getPackageName());
 
-                if(audioManager.isSpeakerphoneOn()){
-                  switchAudioActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_phonelink_ring_white_24dp));
-                }else{
-                  switchAudioActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_volume_headhphones_white_24dp));
-                }
-                switchAudioActionFab.hide();
-                switchAudioActionFab.show();
-
+              int icon = audioManager.isSpeakerphoneOn() ? ring : headphones;
+              switchAudioActionFab.setImageDrawable(ContextCompat.getDrawable( getActivity(), icon));
             }
         };
     }
@@ -888,14 +884,14 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
                     localVideoTrack.enable(enable);
                     int icon;
                     if (enable) {
-                      localVideoActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_videocam_green_24px));
-                      switchCameraActionFab.show();
+
+                      icon = getResources().getIdentifier("@drawable/ic_videocam_green_24px", "drawable", getActivity().getPackageName());
+                        switchCameraActionFab.show();
                     } else {
-                      localVideoActionFab.setImageDrawable(getResources().getDrawable(R.drawable.ic_videocam_off_red_24px));
-                      switchCameraActionFab.hide();
+                      icon = getResources().getIdentifier("@drawable/ic_videocam_off_red_24px", "drawable", getActivity().getPackageName());
+                        switchCameraActionFab.hide();
                     }
-                    localVideoActionFab.hide();
-                    localVideoActionFab.show();
+                    localVideoActionFab.setImageDrawable(ContextCompat.getDrawable( getActivity(), icon));
                 }
             }
         };
@@ -910,18 +906,29 @@ public class TwilioVideoActivity extends Fragment implements CallActionObserver 
                  * signaled to other Participants in the same Room. When an audio track is
                  * disabled, the audio is muted.
                  */
-                if (localAudioTrack != null) {
-                    boolean enable = !localAudioTrack.isEnabled();
-                    localAudioTrack.enable(enable);
-                  Integer mic_on = getResources().getIdentifier("@drawable/ic_microphone", "drawable", getActivity().getPackageName());
-                  Integer mic_off = getResources().getIdentifier("@drawable/ic_microphone_off", "drawable", getActivity().getPackageName());
+                if(audioManager.isMicrophoneMute()){
+                  audioManager.setMicrophoneMute(false);
+                  Integer icon = getResources().getIdentifier("@drawable/ic_microphone", "drawable", getActivity().getPackageName());
+                  switchAudioActionFab.setImageDrawable(ContextCompat.getDrawable(
+                     getActivity(), icon));
 
 
-                  int icon = enable ?
-                    mic_on : mic_off;
-//                    muteActionFab.setImageDrawable(ContextCompat.getDrawable(
-//                      getActivity(), icon));
+                }else{
+                  audioManager.setMicrophoneMute(true);
+                  Integer icon = getResources().getIdentifier("@drawable/ic_microphone_off", "drawable", getActivity().getPackageName());
+                  switchAudioActionFab.setImageDrawable(ContextCompat.getDrawable(getActivity(), icon));
                 }
+
+                  // int icon = enable ?
+                  //   mic_on : mic_off;
+                
+                // if (localAudioTrack != null) {
+                //     boolean enable = !localAudioTrack.isEnabled();
+                //     localAudioTrack.enable(enable);
+                 
+                  //  muteActionFab.setImageDrawable(ContextCompat.getDrawable(
+                  //    getActivity(), icon));
+                // }
             }
         };
     }

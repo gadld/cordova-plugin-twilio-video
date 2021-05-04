@@ -30,7 +30,7 @@
         android:id="@+id/switch_audio_action_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:srcCompat="@drawable/ic_phonelink_ring_white_24dp"
+        app:srcCompat="@drawable/ic_microphone"
         app:backgroundTint="#f4f4f4"
         app:tint="@android:color/black"
         app:borderWidth="0dp"
