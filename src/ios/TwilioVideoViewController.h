@@ -22,7 +22,7 @@
 #pragma mark UI Element Outlets and handles
 
 // `TVIVideoView` created from a storyboard
-@property (weak, nonatomic) IBOutlet TVIVideoView *previewView;
+@property (nonatomic, strong) TVIVideoView *previewView;
 
 @property (nonatomic, weak) IBOutlet UIButton *disconnectButton;
 @property (nonatomic, weak) IBOutlet UIButton *micButton;

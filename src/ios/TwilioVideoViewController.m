@@ -17,8 +17,16 @@ static TVIRoom *currentRoom;
     }
 }
 
+// In TwilioVideoViewController.h, change the property from IBOutlet to strong:
+// @property (nonatomic, strong) TVIVideoView *previewView;
+
+// In TwilioVideoViewController.m:
+
 - (void)viewDidLoad {
     [super viewDidLoad];
+
+    // Set clear background
+    self.view.backgroundColor = [UIColor clearColor];
 
     [[TwilioVideoManager getInstance] setActionDelegate:self];
 
@@ -30,6 +38,9 @@ static TVIRoom *currentRoom;
     // Configure access token for testing. Create one manually in the console
     // at https://www.twilio.com/console/video/runtime/testing-tools
     self.accessToken = @"TWILIO_ACCESS_TOKEN";
+
+    // Create the preview view programmatically
+    [self setupPreviewView];
 
     // Preview our local camera track in the local video preview view.
     [self startPreview];
@@ -55,59 +66,26 @@ static TVIRoom *currentRoom;
     }
 }
 
-#pragma mark - Public
-
-- (void)connectToRoom:(NSString*)room token:(NSString *)token {
-    self.roomName = room;
-    self.accessToken = token;
-    [self showRoomUI:YES];
-
-    [TwilioVideoPermissions requestRequiredPermissions:^(BOOL grantedPermissions) {
-         if (grantedPermissions) {
-             [self doConnect];
-         } else {
-             [[TwilioVideoManager getInstance] publishEvent:[CallEvent of:EVENT_PERMISSIONS_REQUIRED]];
-             [self handleConnectionError];
-         }
-    }];
-}
-
-- (IBAction)disconnectButtonPressed:(id)sender {
-    if ([self.config hangUpInApp]) {
-        [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_HANG_UP] withRoomCtx:currentRoom]];
-    } else {
-        [self onDisconnect];
-    }
-}
-
-- (IBAction)micButtonPressed:(id)sender {
-    // We will toggle the mic to mute/unmute and change the title according to the user action.
-
-    if (self.localAudioTrack) {
-        self.localAudioTrack.enabled = !self.localAudioTrack.isEnabled;
-        // If audio not enabled, mic is muted and button crossed out
-        [self.micButton setSelected: !self.localAudioTrack.isEnabled];
-    }
-}
-
-- (IBAction)cameraSwitchButtonPressed:(id)sender {
-    [self flipCamera];
-}
-
-- (IBAction)videoButtonPressed:(id)sender {
-    if(self.localVideoTrack){
-        self.localVideoTrack.enabled = !self.localVideoTrack.isEnabled;
-        [self.videoButton setSelected: !self.localVideoTrack.isEnabled];
-    }
-}
-
-#pragma mark - Private
-
-- (BOOL)isSimulator {
-#if TARGET_IPHONE_SIMULATOR
-    return YES;
-#endif
-    return NO;
+- (void)setupPreviewView {
+    // Create TVIVideoView and add to view hierarchy immediately
+    TVIVideoView *previewView = [[TVIVideoView alloc] init];
+    previewView.contentMode = UIViewContentModeScaleAspectFit;
+    previewView.backgroundColor = [UIColor colorWithWhite:0.667 alpha:1.0];
+    
+    // Add to view hierarchy BEFORE assigning to weak property
+    [self.view addSubview:previewView];
+    
+    // Now it's safe to assign to weak property (parent view retains it)
+    self.previewView = previewView;
+    
+    // Set up constraints programmatically
+    self.previewView.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [self.previewView.widthAnchor constraintEqualToConstant:120],
+        [self.previewView.heightAnchor constraintEqualToConstant:160],
+        [self.previewView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-11],
+        [self.previewView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-10]
+    ]];
 }
 
 - (void)startPreview {
@@ -155,6 +133,63 @@ static TVIRoom *currentRoom;
        [self logMessage:@"No front or back capture device found!"];
    }
 }
+#pragma mark - Public
+
+- (void)connectToRoom:(NSString*)room token:(NSString *)token {
+    self.roomName = room;
+    self.accessToken = token;
+    [self showRoomUI:YES];
+
+    [TwilioVideoPermissions requestRequiredPermissions:^(BOOL grantedPermissions) {
+         if (grantedPermissions) {
+             // Start preview here instead
+             [self startPreview];
+             [self doConnect];
+         } else {
+             [[TwilioVideoManager getInstance] publishEvent:[CallEvent of:EVENT_PERMISSIONS_REQUIRED]];
+             [self handleConnectionError];
+         }
+    }];
+}
+
+- (IBAction)disconnectButtonPressed:(id)sender {
+    if ([self.config hangUpInApp]) {
+        [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_HANG_UP] withRoomCtx:currentRoom]];
+    } else {
+        [self onDisconnect];
+    }
+}
+
+- (IBAction)micButtonPressed:(id)sender {
+    // We will toggle the mic to mute/unmute and change the title according to the user action.
+
+    if (self.localAudioTrack) {
+        self.localAudioTrack.enabled = !self.localAudioTrack.isEnabled;
+        // If audio not enabled, mic is muted and button crossed out
+        [self.micButton setSelected: !self.localAudioTrack.isEnabled];
+    }
+}
+
+- (IBAction)cameraSwitchButtonPressed:(id)sender {
+    [self flipCamera];
+}
+
+- (IBAction)videoButtonPressed:(id)sender {
+    if(self.localVideoTrack){
+        self.localVideoTrack.enabled = !self.localVideoTrack.isEnabled;
+        [self.videoButton setSelected: !self.localVideoTrack.isEnabled];
+    }
+}
+
+#pragma mark - Private
+
+- (BOOL)isSimulator {
+#if TARGET_IPHONE_SIMULATOR
+    return YES;
+#endif
+    return NO;
+}
+
 
 - (void)flipCamera {
     AVCaptureDevice *newDevice = nil;
