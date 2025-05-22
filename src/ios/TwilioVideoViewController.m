@@ -10,12 +10,6 @@ static TVIRoom *currentRoom;
     return currentRoom;
 }
 
-- (void)dealloc {
-    // We are done with current room
-    if (currentRoom) {
-        currentRoom = nil;
-    }
-}
 
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -220,50 +214,6 @@ static TVIRoom *currentRoom;
     [self logMessage:@"Attempting to connect to room"];
 }
 
-- (void)setupRemoteView {
-    // Creating `TVIVideoView` programmatically
-    TVIVideoView *remoteView = [[TVIVideoView alloc] init];
-
-    // `TVIVideoView` supports UIViewContentModeScaleToFill, UIViewContentModeScaleAspectFill and UIViewContentModeScaleAspectFit
-    // UIViewContentModeScaleAspectFit is the default mode when you create `TVIVideoView` programmatically.
-    remoteView.contentMode = UIViewContentModeScaleAspectFill;
-
-    [self.view insertSubview:remoteView atIndex:0];
-    self.remoteView = remoteView;
-
-    NSLayoutConstraint *centerX = [NSLayoutConstraint constraintWithItem:self.remoteView
-                                                               attribute:NSLayoutAttributeCenterX
-                                                               relatedBy:NSLayoutRelationEqual
-                                                                  toItem:self.view
-                                                               attribute:NSLayoutAttributeCenterX
-                                                              multiplier:1
-                                                                constant:0];
-    [self.view addConstraint:centerX];
-    NSLayoutConstraint *centerY = [NSLayoutConstraint constraintWithItem:self.remoteView
-                                                               attribute:NSLayoutAttributeCenterY
-                                                               relatedBy:NSLayoutRelationEqual
-                                                                  toItem:self.view
-                                                               attribute:NSLayoutAttributeCenterY
-                                                              multiplier:1
-                                                                constant:0];
-    [self.view addConstraint:centerY];
-    NSLayoutConstraint *width = [NSLayoutConstraint constraintWithItem:self.remoteView
-                                                             attribute:NSLayoutAttributeWidth
-                                                             relatedBy:NSLayoutRelationEqual
-                                                                toItem:self.view
-                                                             attribute:NSLayoutAttributeWidth
-                                                            multiplier:1
-                                                              constant:0];
-    [self.view addConstraint:width];
-    NSLayoutConstraint *height = [NSLayoutConstraint constraintWithItem:self.remoteView
-                                                              attribute:NSLayoutAttributeHeight
-                                                              relatedBy:NSLayoutRelationEqual
-                                                                 toItem:self.view
-                                                              attribute:NSLayoutAttributeHeight
-                                                             multiplier:1
-                                                               constant:0];
-    [self.view addConstraint:height];
-}
 
 // Reset the client ui status
 - (void)showRoomUI:(BOOL)inRoom {
@@ -271,16 +221,6 @@ static TVIRoom *currentRoom;
     [UIApplication sharedApplication].idleTimerDisabled = inRoom;
 }
 
-- (void)cleanupRemoteParticipant {
-    if (self.remoteParticipant) {
-        if ([self.remoteParticipant.videoTracks count] > 0) {
-            TVIRemoteVideoTrack *videoTrack = self.remoteParticipant.remoteVideoTracks[0].remoteTrack;
-            [videoTrack removeRenderer:self.remoteView];
-            [self.remoteView removeFromSuperview];
-        }
-        self.remoteParticipant = nil;
-    }
-}
 
 - (void)logMessage:(NSString *)msg {
     NSLog(@"%@", msg);
@@ -298,13 +238,7 @@ static TVIRoom *currentRoom;
     });
 }
 
-#pragma mark - TwilioVideoActionProducerDelegate
 
-- (void)onDisconnect {
-    if (currentRoom != NULL) {
-        [currentRoom disconnect];
-    }
-}
 
 #pragma mark - TVIRoomDelegate
 
@@ -328,21 +262,6 @@ static TVIRoom *currentRoom;
     [self handleConnectionError];
 }
 
-- (void)room:(nonnull TVIRoom *)room didDisconnectWithError:(nullable NSError *)error {
-    [self logMessage:[NSString stringWithFormat:@"Disconnected from room %@, error = %@", room.name, error]];
-
-    [self cleanupRemoteParticipant];
-    currentRoom = nil;
-
-    [self showRoomUI:NO];
-    if (error != NULL) {
-        [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_DISCONNECTED_WITH_ERROR withError:error] withRoomCtx:room]];
-        [self handleConnectionError];
-    } else {
-        [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_DISCONNECTED] withRoomCtx:room]];
-        [self dismiss];
-    }
-}
 
 - (void)room:(nonnull TVIRoom *)room isReconnectingWithError:(nonnull NSError *)error {
     [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_RECONNECTING withError:error] withRoomCtx:room]];
@@ -423,22 +342,6 @@ static TVIRoom *currentRoom;
     }
 }
 
-- (void)didUnsubscribeFromVideoTrack:(nonnull TVIRemoteVideoTrack *)videoTrack
-                         publication:(nonnull TVIRemoteVideoTrackPublication *)publication
-                      forParticipant:(nonnull TVIRemoteParticipant *)participant {
-
-    // We are unsubscribed from the remote Participant's video Track. We will no longer receive the
-    // remote Participant's video.
-
-    [self logMessage:[NSString stringWithFormat:@"Unsubscribed from %@ video track for Participant %@",
-                      publication.trackName, participant.identity]];
-    [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_REMOTE_VIDEO_TRACK_REMOVED] withRoomCtx:currentRoom]];
-
-    if (self.remoteParticipant == participant) {
-        [videoTrack removeRenderer:self.remoteView];
-        [self.remoteView removeFromSuperview];
-    }
-}
 
 - (void)didSubscribeToAudioTrack:(nonnull TVIRemoteAudioTrack *)audioTrack
                      publication:(nonnull TVIRemoteAudioTrackPublication *)publication
