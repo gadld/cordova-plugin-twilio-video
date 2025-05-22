@@ -28,10 +28,13 @@
 
         vc.config = config;
 
-        vc.view.backgroundColor = [UIColor clearColor];
+        // Don't access view here - it triggers viewDidLoad too early
+        // vc.view.backgroundColor = [UIColor clearColor];
         vc.modalPresentationStyle = UIModalPresentationOverFullScreen;
 
         [self.viewController presentViewController:vc animated:NO completion:^{
+            // Set background color after presentation
+            vc.view.backgroundColor = [UIColor clearColor];
             [vc connectToRoom:room token:token];
         }];
     });
