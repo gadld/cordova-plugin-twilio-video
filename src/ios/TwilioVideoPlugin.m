@@ -10,14 +10,6 @@
 }
 
 - (void)openRoom:(CDVInvokedUrlCommand*)command {
-    TVIRoom *currentRoom = [TwilioVideoViewController getVideocallRoomInstance];
-    if (currentRoom && (currentRoom.state == TVIRoomStateConnected || currentRoom.state == TVIRoomStateConnecting)) {
-        CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR 
-                                                messageAsString:@"Room connection already active"];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
     self.listenerCallbackID = command.callbackId;
     NSArray *args = command.arguments;
     NSString* token = args[0];
