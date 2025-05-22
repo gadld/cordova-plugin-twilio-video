@@ -509,4 +509,157 @@ static TVIRoom *currentRoom;
     [self logMessage:[NSString stringWithFormat:@"Capture failed with error.\ncode = %lu error = %@", error.code, error.localizedDescription]];
 }
 
+#pragma mark - Video View Management
+
+- (void)setupRemoteView {
+    // Only create remote view if it doesn't already exist
+    if (self.remoteView != nil) {
+        NSLog(@"Remote view already exists, skipping setup");
+        return;
+    }
+    
+    // Creating `TVIVideoView` programmatically
+    TVIVideoView *remoteView = [[TVIVideoView alloc] init];
+
+    // `TVIVideoView` supports UIViewContentModeScaleToFill, UIViewContentModeScaleAspectFill and UIViewContentModeScaleAspectFit
+    // UIViewContentModeScaleAspectFit is the default mode when you create `TVIVideoView` programmatically.
+    remoteView.contentMode = UIViewContentModeScaleAspectFill;
+
+    [self.view insertSubview:remoteView atIndex:0];
+    self.remoteView = remoteView;
+
+    NSLayoutConstraint *centerX = [NSLayoutConstraint constraintWithItem:self.remoteView
+                                                               attribute:NSLayoutAttributeCenterX
+                                                               relatedBy:NSLayoutRelationEqual
+                                                                  toItem:self.view
+                                                               attribute:NSLayoutAttributeCenterX
+                                                              multiplier:1
+                                                                constant:0];
+    [self.view addConstraint:centerX];
+    NSLayoutConstraint *centerY = [NSLayoutConstraint constraintWithItem:self.remoteView
+                                                               attribute:NSLayoutAttributeCenterY
+                                                               relatedBy:NSLayoutRelationEqual
+                                                                  toItem:self.view
+                                                               attribute:NSLayoutAttributeCenterY
+                                                              multiplier:1
+                                                                constant:0];
+    [self.view addConstraint:centerY];
+    NSLayoutConstraint *width = [NSLayoutConstraint constraintWithItem:self.remoteView
+                                                             attribute:NSLayoutAttributeWidth
+                                                             relatedBy:NSLayoutRelationEqual
+                                                                toItem:self.view
+                                                             attribute:NSLayoutAttributeWidth
+                                                            multiplier:1
+                                                              constant:0];
+    [self.view addConstraint:width];
+    NSLayoutConstraint *height = [NSLayoutConstraint constraintWithItem:self.remoteView
+                                                              attribute:NSLayoutAttributeHeight
+                                                              relatedBy:NSLayoutRelationEqual
+                                                                 toItem:self.view
+                                                              attribute:NSLayoutAttributeHeight
+                                                             multiplier:1
+                                                               constant:0];
+    [self.view addConstraint:height];
+}
+
+- (void)cleanupRemoteParticipant {
+    if (self.remoteParticipant) {
+        if ([self.remoteParticipant.videoTracks count] > 0) {
+            TVIRemoteVideoTrack *videoTrack = self.remoteParticipant.remoteVideoTracks[0].remoteTrack;
+            if (videoTrack && self.remoteView) {
+                [videoTrack removeRenderer:self.remoteView];
+            }
+        }
+        self.remoteParticipant = nil;
+    }
+    
+    // Clean up the remote view
+    if (self.remoteView) {
+        [self.remoteView removeFromSuperview];
+        self.remoteView = nil;
+    }
+}
+
+- (void)cleanupLocalVideo {
+    if (self.localVideoTrack && self.previewView) {
+        [self.localVideoTrack removeRenderer:self.previewView];
+    }
+    
+    if (self.camera) {
+        [self.camera stopCapture];
+        self.camera = nil;
+    }
+    
+    self.localVideoTrack = nil;
+    self.localAudioTrack = nil;
+}
+
+- (void)dealloc {
+    NSLog(@"TwilioVideoViewController dealloc");
+    
+    // Clean up all video resources
+    [self cleanupLocalVideo];
+    [self cleanupRemoteParticipant];
+    
+    // Clean up current room
+    if (currentRoom) {
+        currentRoom = nil;
+    }
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    
+    // Only cleanup if we're being dismissed/popped, not just covered
+    if (self.isBeingDismissed || self.isMovingFromParentViewController) {
+        [self cleanupLocalVideo];
+        [self cleanupRemoteParticipant];
+    }
+}
+
+// Updated disconnect method with proper cleanup
+- (void)onDisconnect {
+    if (currentRoom != NULL) {
+        [currentRoom disconnect];
+    }
+    
+    // Ensure cleanup happens
+    [self cleanupLocalVideo];
+    [self cleanupRemoteParticipant];
+}
+
+// Updated room disconnect delegate methods
+- (void)room:(nonnull TVIRoom *)room didDisconnectWithError:(nullable NSError *)error {
+    [self logMessage:[NSString stringWithFormat:@"Disconnected from room %@, error = %@", room.name, error]];
+
+    [self cleanupRemoteParticipant];
+    currentRoom = nil;
+
+    [self showRoomUI:NO];
+    if (error != NULL) {
+        [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_DISCONNECTED_WITH_ERROR withError:error] withRoomCtx:room]];
+        [self handleConnectionError];
+    } else {
+        [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_DISCONNECTED] withRoomCtx:room]];
+        [self dismiss];
+    }
+}
+
+- (void)didUnsubscribeFromVideoTrack:(nonnull TVIRemoteVideoTrack *)videoTrack
+                         publication:(nonnull TVIRemoteVideoTrackPublication *)publication
+                      forParticipant:(nonnull TVIRemoteParticipant *)participant {
+
+    [self logMessage:[NSString stringWithFormat:@"Unsubscribed from %@ video track for Participant %@",
+                      publication.trackName, participant.identity]];
+    [[TwilioVideoManager getInstance] publishEvent:[[CallEvent of:EVENT_REMOTE_VIDEO_TRACK_REMOVED] withRoomCtx:currentRoom]];
+
+    if (self.remoteParticipant == participant) {
+        if (self.remoteView) {
+            [videoTrack removeRenderer:self.remoteView];
+            [self.remoteView removeFromSuperview];
+            self.remoteView = nil;
+        }
+    }
+}
+
 @end
